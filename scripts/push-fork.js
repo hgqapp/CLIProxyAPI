@@ -71,9 +71,10 @@ function main() {
       .split('\n')
       .find((l) => l.endsWith(` ${forkTree}`));
     if (localMatch) {
-      parentSha = localMatch.split(' ')[0];
-      range = `${parentSha}..HEAD`;
-      console.log(`aligned fork main (tree ${forkTree.slice(0, 9)}) with local ${parentSha.slice(0, 9)}`);
+      // The fork already has this content under its own sha; replay on top of it.
+      parentSha = baseSha;
+      range = `${localMatch.split(' ')[0]}..HEAD`;
+      console.log(`aligned fork main (tree ${forkTree.slice(0, 9)}) with local ${localMatch.split(' ')[0].slice(0, 9)}`);
     } else if (force) {
       // Rebuild the full fork tail on top of upstream/main (fork was created from it,
       // so all upstream objects exist remotely).
@@ -86,12 +87,8 @@ function main() {
     }
   }
   const commits = git(`rev-list --reverse ${range}`).split('\n').filter(Boolean);
-  if (!commits.length) {
-    console.log('no commits to replay');
-    return;
-  }
-
-  for (const c of commits) {
+  if (commits.length) {
+    for (const c of commits) {
     const parent = git(`rev-parse ${c}~1`); // NB: not ^ — cmd.exe eats the caret
     const files = git(`diff --name-only ${parent} ${c}`).split('\n').map((s) => s.trim()).filter(Boolean);
     const parentCommit = gh(`${API}/git/commits/${parentSha}`);
@@ -109,6 +106,7 @@ function main() {
     const created = gh(`${API}/git/commits`, 'POST', { message, tree: tree.sha, parents: [parentSha] });
     parentSha = created.sha;
     console.log(`replayed ${c.slice(0, 9)} -> ${created.sha.slice(0, 9)} (${message.split('\n')[0].slice(0, 60)})`);
+    }
   }
 
   gh(`${API}/git/refs/heads/main`, 'PATCH', { sha: parentSha, force });
