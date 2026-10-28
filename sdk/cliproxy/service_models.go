@@ -211,6 +211,12 @@ func (s *Service) registerModelsForAuthWithConfigAndCache(ctx context.Context, c
 			}
 		}
 		models = applyExcludedModels(models, excluded)
+	case "codebuddy":
+		models = registry.GetCodeBuddyModels()
+		models = applyExcludedModels(models, excluded)
+	case "codebuddy-intl":
+		models = registry.GetCodeBuddyIntlModels()
+		models = applyExcludedModels(models, excluded)
 	default:
 		// Handle OpenAI-compatibility providers by name using config
 		if cfg != nil {
